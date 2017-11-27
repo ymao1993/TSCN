@@ -1,5 +1,7 @@
 """LSTM decoder model and training configurations."""
 
+default_batch_size = 256  # 64
+
 
 class ModelConfig(object):
     """Wrapper class for model hyper-parameters."""
@@ -10,28 +12,31 @@ class ModelConfig(object):
         # Number of unique words in the vocab (including <START>, <END>, <UNKNOWN>).
         self.vocab_size = 0
 
-        # Number of threads for image preprocessing. Should be a multiple of 2.
-        self.num_preprocess_threads = 4
-
-        # Scale used to initialize model variables.
-        self.initializer_scale = 0.08
-
         # Batch Size
-        self.batch_size = 512
+        self.batch_size = default_batch_size
 
         # Number of segments used in sampling training features for each video.
         # Number of frames used to represent each video
-        self.num_segments = 5
+        self.num_segments = 10
 
         # Input feature dimensionality
         self.input_feature_size = 1024
 
+        # Number of LSTM layers
+        self.num_lstm_layers = 2
+
+        # Number of units in the intermediate FC layer for converting input feature to feature embedding.
+        self.num_units_intermediate_fc = 1024  # 4096
+
         # LSTM input and output dimensionality, respectively.
-        self.embedding_size = 256
-        self.num_lstm_units = 256
+        self.embedding_size = 1024
+        self.num_lstm_units = 1024
 
         # If < 1.0, the dropout keep probability applied to LSTM variables.
-        self.lstm_dropout_keep_prob = 0.5
+        self.lstm_dropout_keep_prob = 0.7
+
+        # Regularization strength applied to image image embedding layer
+        self.regularization_strength = 0.0001
 
 
 class TrainingConfig(object):
@@ -41,15 +46,15 @@ class TrainingConfig(object):
         """Sets the default training hyperparameters."""
         # Number of examples per epoch of training data.
         # Total Number of Frames (1381336) / Number of Segments (5)
-        self.num_examples_per_epoch = 276267
+        self.num_examples_per_epoch = 138134
 
         # Optimizer for training the model.
         self.optimizer = "SGD"
 
         # Learning rate for the initial phase of training.
-        self.initial_learning_rate = 0.001
+        self.initial_learning_rate = 0.01
         self.learning_rate_decay_factor = 0.5
-        self.num_epochs_per_decay = 1.0
+        self.num_epochs_per_decay = 4.0
 
         # If not None, clip gradients to this value.
         self.clip_gradients = 5.0
@@ -61,13 +66,13 @@ class TrainingConfig(object):
         self.num_iterations = -1
 
         # Batch size used for SGD.
-        self.batch_size = 32
+        self.batch_size = default_batch_size
 
         # Log every N steps.
         self.log_every_n_steps = 1
 
         # Save model every N steps
-        self.save_every_n_steps = 5000
+        self.save_every_n_steps = 1000
 
         # Directory for saving and loading model checkpoints.
         self.train_dir = ""

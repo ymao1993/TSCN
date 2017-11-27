@@ -22,11 +22,8 @@ class LSTMDecoder(object):
         self.config = config
         self.mode = mode
 
-        # To match the "Show and Tell" paper we initialize all variables with a
-        # random uniform initializer.
-        self.initializer = tf.random_uniform_initializer(
-            minval=-self.config.initializer_scale,
-            maxval=self.config.initializer_scale)
+        # Use Xavier initializer
+        self.initializer = tf.contrib.layers.xavier_initializer()
 
         # A float32 Tensor with shape [batch_size, padded_length, embedding_size].
         self.seq_embeddings = None
@@ -65,13 +62,23 @@ class LSTMDecoder(object):
                                                self.config.input_feature_size],
                                         name="input_features")
         reshaped_feature = tf.reshape(input_features, (self.config.batch_size, -1))
+        intermediate_layer = tf.contrib.layers.fully_connected(
+            inputs=reshaped_feature,
+            num_outputs=self.config.num_units_intermediate_fc,
+            activation_fn=tf.nn.tanh,
+            weights_initializer=self.initializer,
+            biases_initializer=None,
+            weights_regularizer=tf.contrib.layers.l2_regularizer(self.config.regularization_strength),
+            biases_regularizer=tf.contrib.layers.l2_regularizer(self.config.regularization_strength))
         with tf.variable_scope("feature_embedding") as scope:
             feature_embeddings = tf.contrib.layers.fully_connected(
-                inputs=reshaped_feature,
+                inputs=intermediate_layer,
                 num_outputs=self.config.embedding_size,
                 activation_fn=None,
                 weights_initializer=self.initializer,
                 biases_initializer=None,
+                weights_regularizer=tf.contrib.layers.l2_regularizer(self.config.regularization_strength),
+                biases_regularizer=tf.contrib.layers.l2_regularizer(self.config.regularization_strength),
                 scope=scope)
         self.feature_embeddings = feature_embeddings
 
@@ -122,8 +129,10 @@ class LSTMDecoder(object):
                                     shape=[self.config.batch_size, const_config.lstm_truncated_length],
                                     name="input_mask")
 
-        lstm_cell = tf.contrib.rnn.BasicLSTMCell(
-            num_units=self.config.num_lstm_units, state_is_tuple=True)
+        lstm_cell = tf.contrib.rnn.MultiRNNCell(
+            [tf.contrib.rnn.BasicLSTMCell(num_units=self.config.num_lstm_units, forget_bias=0.0)
+             for _ in range(self.config.num_lstm_layers)], state_is_tuple=True)
+
         if self.mode == "train":
             lstm_cell = tf.contrib.rnn.DropoutWrapper(
                 lstm_cell,
@@ -131,11 +140,11 @@ class LSTMDecoder(object):
                 output_keep_prob=self.config.lstm_dropout_keep_prob)
 
         with tf.variable_scope("lstm", initializer=self.initializer) as lstm_scope:
-            # Create a all zero state for the LSTM cell (zero_state shape: [batch_size, state_size]).
+            # Create a all zero state for the LSTM cell (zero_state shape: [num_layer, 2, batch_size, state_size]).
             zero_state = lstm_cell.zero_state(batch_size=self.feature_embeddings.get_shape()[0], dtype=tf.float32)
 
             # Feed the input feature to set the initial LSTM state.
-            # (initial_state shape: ([batch_size, state_size], [batch_size, state_size])).
+            # (initial_state shape: [num_layer, 2, batch_size, state_size]).
             _, initial_state = lstm_cell(self.feature_embeddings, zero_state)
 
             # Allow the LSTM variables to be reused.
@@ -143,16 +152,17 @@ class LSTMDecoder(object):
 
             if self.mode == "inference":
                 # In inference mode, use concatenated states for convenient feeding and fetching.
-                # initial_state is of shape (batch_size, state_size * 2)
-                tf.concat(axis=1, values=initial_state, name="initial_state")
+                # initial_state is of shape (num_layer, 2, batch_size, state_size)
+                tf.stack(axis=0, values=initial_state, name="initial_state")
 
                 # Placeholder for feeding a batch of concatenated states.
-                state_feed = tf.placeholder(dtype=tf.float32,
-                                            shape=[self.config.batch_size, sum(lstm_cell.state_size)],
-                                            name="state_feed")
+                state_feed = tf.placeholder(
+                    dtype=tf.float32,
+                    shape=[self.config.num_lstm_layers, 2, self.config.batch_size, self.config.num_lstm_units],
+                    name="state_feed")
 
-                # state_tuple shape: [(batch_size, state_size) ,(batch_size, state_size)]
-                state_tuple = tf.split(value=state_feed, num_or_size_splits=2, axis=1)
+                per_layer_state_tuple = [tf.contrib.rnn.LSTMStateTuple(state_feed[idx][0], state_feed[idx][1])
+                                         for idx in range(self.config.num_lstm_layers)]
 
                 # Run a single LSTM step.
                 # During inference, the dimension at index 1 must be 1.
@@ -161,10 +171,10 @@ class LSTMDecoder(object):
                 # state_tuple: [(batch_size, state_size[0]), (batch_size, state_size[1])]
                 lstm_outputs, state_tuple = lstm_cell(
                     inputs=self.seq_embeddings,
-                    state=state_tuple)
+                    state=per_layer_state_tuple)
 
                 # Concatentate the resulting state.
-                tf.concat(axis=1, values=state_tuple, name="state")
+                tf.stack(values=state_tuple, name="state")
             else:
                 # Compute the length of each sequence in the mini-batch.
                 sequence_length = tf.reduce_sum(input_mask, 1)
@@ -207,17 +217,19 @@ class LSTMDecoder(object):
                                 tf.reduce_sum(weights),
                                 name="batch_loss")
             tf.losses.add_loss(batch_loss)
+            regularization_losses = tf.losses.get_regularization_losses()
+            regularization_loss = tf.reduce_sum(regularization_losses)
+
             total_loss = tf.losses.get_total_loss()
 
             # Add summaries.
             tf.summary.scalar("losses/batch_loss", batch_loss)
+            tf.summary.scalar("losses/regularization_loss", regularization_loss)
             tf.summary.scalar("losses/total_loss", total_loss)
             for var in tf.trainable_variables():
                 tf.summary.histogram("parameters/" + var.op.name, var)
 
             self.total_loss = total_loss
-            self.target_cross_entropy_losses = losses  # Used in evaluation.
-            self.target_cross_entropy_loss_weights = weights  # Used in evaluation.
 
     def setup_global_step(self):
         """Sets up the global step Tensor."""

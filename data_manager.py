@@ -2,6 +2,7 @@ import os
 import json
 import numpy as np
 import cPickle as pickle
+import nltk
 from sklearn.preprocessing import normalize
 
 
@@ -25,6 +26,9 @@ class DataManager:
 
         # all captions appeared
         self.raw_captions = []
+
+        # all captions appeared (tokenized)
+        self.raw_captions_tokens = None
 
         # path to frames
         self.frame_paths = []
@@ -142,6 +146,30 @@ class DataManager:
         captions = [self.captions[idx] for idx in k_best_indices]
         frame_paths = [self.frame_paths[idx] for idx in k_best_indices]
         return captions, frame_paths, k_min_distances
+
+    def tokenize_raw_captions(self):
+        print('Tokenizing raw captions...')
+        self.raw_captions_tokens = []
+        for caption in self.raw_captions:
+            self.raw_captions_tokens.append(nltk.word_tokenize(caption.lower()))
+
+    def query_nearest_caption_by_caption_with_brutal_force(self, query_caption, metrics='bleu'):
+        similarity_func = nltk.translate.bleu_score.sentence_bleu
+        if metrics == 'bleu':
+            similarity_func = nltk.translate.bleu_score.sentence_bleu
+        else:
+            assert 'The metrics %s is not supported.' % metrics
+        if self.raw_captions_tokens is None:
+            self.tokenize_raw_captions()
+        query_caption_tokens = nltk.word_tokenize(query_caption.lower())
+        highest_score = -1
+        nearest_candidate = None
+        for i, caption_tokens in enumerate(self.raw_captions_tokens):
+            score = similarity_func([query_caption_tokens], caption_tokens)
+            if score > highest_score:
+                nearest_candidate = self.raw_captions[i]
+                highest_score = score
+        return nearest_candidate
 
     def get_frames_path(self, video_segment_name):
         key_frames = list(self.key_frames[video_segment_name])

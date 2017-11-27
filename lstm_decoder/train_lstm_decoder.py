@@ -50,7 +50,6 @@ def main(args):
 
     # Assign parameters to model configuration.
     model_config.vocab_size = vocab_size
-    training_config.batch_size = FLAGS.batch_size
     training_config.train_dir = FLAGS.train_dir
     training_config.num_iterations = FLAGS.number_of_steps
     training_config.log_every_n_steps = FLAGS.log_every_n_steps
@@ -76,14 +75,6 @@ def main(args):
         time_elapsed = end - start
         print('Finished initializing data loader (time elapsed: %f)' % time_elapsed)
 
-        print('Initializing data loader for validation set...')
-        start = time.time()
-        data_loader_val = DataLoader()
-        data_loader_val.load(FLAGS.validation_data_loader)
-        end = time.time()
-        time_elapsed = end - start
-        print('Finished initializing data loader (time elapsed: %f)' % time_elapsed)
-
         # Setup learning rate decay.
         num_batches_per_epoch = (training_config.num_examples_per_epoch /
                                  model_config.batch_size)
@@ -95,6 +86,7 @@ def main(args):
             decay_steps=decay_steps,
             decay_rate=training_config.learning_rate_decay_factor,
             staircase=True)
+        tf.summary.scalar('learning_rate', learning_rate)
 
         # Setup optimizer.
         optimizer = tf.train.AdamOptimizer(learning_rate)
@@ -108,11 +100,22 @@ def main(args):
         # Create saver
         saver = tf.train.Saver(max_to_keep=training_config.max_checkpoints_to_keep)
 
+        print('Initializing data loader for validation set...')
+        start = time.time()
+        data_loader_val = DataLoader()
+        data_loader_val.load(FLAGS.validation_data_loader)
+        end = time.time()
+        time_elapsed = end - start
+        print('Finished initializing data loader (time elapsed: %f)' % time_elapsed)
+
         # Initialize variables.
         print('Initializing variables...')
         init = tf.global_variables_initializer()
         sess = tf.Session()
         sess.run(init)
+
+        # Just want to see if it will over-fit.
+        # data_loader_train.videos = data_loader_train.videos[:100]
 
         print('Start training...')
         # Stochastic Gradient Descent

@@ -27,10 +27,22 @@ def generate_dumb_batch(batch_size, num_segments):
     feature_size = 1024
     sigma = 0.1
     image_features = sigma * np.random.rand(batch_size, num_segments, feature_size)
-    input_sequence = np.zeros(shape=(batch_size, const_config.lstm_truncated_length))
-    input_mask = np.ones(shape=(batch_size, const_config.lstm_truncated_length), dtype=np.int)
-    target_sequence = np.zeros(shape=(batch_size, const_config.lstm_truncated_length))
-    return image_features, input_sequence, input_mask, target_sequence
+    video_indices = None
+    video_segment_indices = None
+    valid_count = batch_size
+    yield image_features, video_indices, video_segment_indices, valid_count
+
+
+def remove_start_end_word_ids(word_id_array, vocab):
+    if word_id_array[0] == vocab.start_id:
+        start = 1
+    else:
+        start = 0
+    if word_id_array[-1] == vocab.end_id:
+        result = word_id_array[start:-1]
+    else:
+        result = word_id_array[start:]
+    return result
 
 
 def main(args):
@@ -72,15 +84,17 @@ def main(args):
         initial_input_sequence = np.zeros(model_config.batch_size, dtype=np.int32)
         initial_input_sequence.fill(vocab.start_id)
 
+        max_sentence_length = const_config.lstm_truncated_length + 1
+
         json_results = []
         for image_features, _, _, _, video_indices, video_segment_indices, valid_count in \
                 data_loader_val.segmental_sampling_iter(batch_size=model_config.batch_size,
                                                         num_segments=model_config.num_segments):
-
             current_input = initial_input_sequence.copy()
             current_state = lstm_decoder_inference.feed_image(sess, image_features)
+
             generated_sentences =\
-                np.zeros((model_config.batch_size, const_config.lstm_truncated_length), dtype=np.int32)
+                np.zeros((model_config.batch_size, max_sentence_length), dtype=np.int32)
             generated_sentences[:, 0] = current_input
             completed_masks = np.zeros(model_config.batch_size, dtype=np.bool)
 
@@ -88,6 +102,7 @@ def main(args):
                 softmax_output, next_state =\
                     lstm_decoder_inference.inference_step(sess, current_input, current_state)
                 next_input = np.argmax(softmax_output, axis=1)
+                generated_sentences[:, i + 1] = next_input
 
                 # Update input and state.
                 current_input = next_input
@@ -96,14 +111,16 @@ def main(args):
                 # Early stop if we have generated the <END> token for all sentences.
                 for j, word_id in enumerate(next_input):
                     if word_id == vocab.end_id:
-                        completed_masks[i] = True
+                        completed_masks[j] = True
                 if sum(completed_masks) == model_config.batch_size:
                     break
 
-            # Extract sentences.
+            # Extract text sentences.
             sentences = []
             for word_id_array in generated_sentences:
-                sentences.append(vocab.id_array_to_sentence(word_id_array))
+                word_id_array = remove_start_end_word_ids(word_id_array, vocab)
+                text = vocab.id_array_to_sentence(word_id_array)
+                sentences.append(text)
             sentences = sentences[:valid_count]
 
             for sentence in sentences:
@@ -114,7 +131,8 @@ def main(args):
                 segment_idx = video_segment_indices[i]
                 video = data_loader_val.videos[video_idx]
                 video_segment = video.video_segments[segment_idx]
-                gt_caption = vocab.id_array_to_sentence(video_segment.caption)
+                caption_trimmed = remove_start_end_word_ids(video_segment.caption, vocab)
+                gt_caption = vocab.id_array_to_sentence(caption_trimmed)
                 video_segment_name = video.name + str(segment_idx)
                 json_results.append({
                     'name': video_segment_name,
