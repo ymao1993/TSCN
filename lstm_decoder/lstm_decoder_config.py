@@ -1,6 +1,6 @@
 """LSTM decoder model and training configurations."""
 
-default_batch_size = 256  # 64
+default_batch_size = 256
 
 
 class ModelConfig(object):
@@ -26,17 +26,17 @@ class ModelConfig(object):
         self.num_lstm_layers = 2
 
         # Number of units in the intermediate FC layer for converting input feature to feature embedding.
-        self.num_units_intermediate_fc = 1024  # 4096
+        self.num_units_intermediate_fc = 1024
 
         # LSTM input and output dimensionality, respectively.
         self.embedding_size = 1024
         self.num_lstm_units = 1024
 
         # If < 1.0, the dropout keep probability applied to LSTM variables.
-        self.lstm_dropout_keep_prob = 0.7
+        self.lstm_dropout_keep_prob = 0.95
 
         # Regularization strength applied to image image embedding layer
-        self.regularization_strength = 0.0001
+        self.regularization_strength = 0.000001
 
 
 class TrainingConfig(object):
