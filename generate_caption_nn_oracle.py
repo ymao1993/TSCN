@@ -24,8 +24,11 @@ def task(q, dm_train, dm_val, metrics, json_all_results):
         if video_segment_name is None:
             break
         gt_caption = dm_val.get_video_segment_caption(video_segment_name)
-        caption = dm_train.query_nearest_caption_by_caption_with_brutal_force(gt_caption, metrics=metrics)
-        print(caption)
+        action_class = dm_val.raw_captions_to_class[gt_caption]
+        caption = dm_train.query_nearest_caption_by_caption_with_brutal_force(
+            gt_caption, metrics=metrics, action_class=action_class)
+        print('gt_caption:' + gt_caption)
+        print('oracle_nn_caption: ' + caption)
         with lock:
             video_processed += 1
             print('[%d/%d]Generated oracle nn caption for %s.' %

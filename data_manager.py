@@ -30,6 +30,11 @@ class DataManager:
         # all captions appeared (tokenized)
         self.raw_captions_tokens = None
 
+        # per-class raw caption and raw caption tokens.
+        self.raw_captions_per_class = {}
+        self.raw_captions_tokens_per_class = {}
+        self.raw_captions_to_class = {}
+
         # path to frames
         self.frame_paths = []
 
@@ -58,7 +63,18 @@ class DataManager:
         for video_name in database.keys():
             data = database[video_name]
             sentences = data['sentences']
+
             self.raw_captions.extend(sentences)
+            name_of_first_video_segment = video_name + str(0)
+            if (name_of_first_video_segment, 0) in self.video_seg_frame_path:
+                file_path_of_first_frame = self.video_seg_frame_path[(name_of_first_video_segment, 0)]
+                action_class = file_path_of_first_frame.split('/')[-3]
+                if action_class not in self.raw_captions_per_class:
+                    self.raw_captions_per_class[action_class] = []
+                self.raw_captions_per_class[action_class].extend(sentences)
+                for sentence in sentences:
+                    self.raw_captions_to_class[sentence] = action_class
+
             for seg_id in range(len(sentences)):
                 self.video_seg_id_to_caption[(video_name, seg_id)] = sentences[seg_id]
         file.close()
@@ -153,21 +169,44 @@ class DataManager:
         for caption in self.raw_captions:
             self.raw_captions_tokens.append(nltk.word_tokenize(caption.lower()))
 
-    def query_nearest_caption_by_caption_with_brutal_force(self, query_caption, metrics='bleu'):
+        print('Tokenizing raw captions per classes...')
+        for action_class in self.raw_captions_per_class:
+            raw_captions = self.raw_captions_per_class[action_class]
+            raw_captions_tokens = []
+            self.raw_captions_tokens_per_class[action_class] = raw_captions_tokens
+            for i in range(len(raw_captions)):
+                raw_captions_tokens.append(nltk.word_tokenize(raw_captions[i]))
+
+    def query_nearest_caption_by_caption_with_brutal_force(
+            self, query_caption, metrics='bleu', action_class=None):
         similarity_func = nltk.translate.bleu_score.sentence_bleu
         if metrics == 'bleu':
             similarity_func = nltk.translate.bleu_score.sentence_bleu
         else:
             assert 'The metrics %s is not supported.' % metrics
-        if self.raw_captions_tokens is None:
-            self.tokenize_raw_captions()
+
+        if action_class is None:
+            candidate_captions = self.raw_captions_tokens
+            assert self.raw_captions_tokens is not None,\
+                'self.raw_captions_tokens is None. ' \
+                'Did you forget to call tokenize_raw_captions first?' % action_class
+            candidate_captions_tokens = self.raw_captions_tokens
+        else:
+            assert action_class in self.raw_captions_per_class,\
+                'Action class %s is not valid' % action_class
+            candidate_captions = self.raw_captions_per_class[action_class]
+            assert action_class in self.raw_captions_tokens_per_class,\
+                'self.raw_captions_tokens_per_class does not contain %s. ' \
+                'Did you forget to call tokenize_raw_captions first?' % action_class
+            candidate_captions_tokens = self.raw_captions_tokens_per_class[action_class]
+
         query_caption_tokens = nltk.word_tokenize(query_caption.lower())
         highest_score = -1
         nearest_candidate = None
-        for i, caption_tokens in enumerate(self.raw_captions_tokens):
+        for i, caption_tokens in enumerate(candidate_captions_tokens):
             score = similarity_func([query_caption_tokens], caption_tokens)
             if score > highest_score:
-                nearest_candidate = self.raw_captions[i]
+                nearest_candidate = candidate_captions[i]
                 highest_score = score
         return nearest_candidate
 
@@ -201,6 +240,8 @@ class DataManager:
                 self.features,
                 self.captions,
                 self.raw_captions,
+                self.raw_captions_per_class,
+                self.raw_captions_to_class,
                 self.frame_paths,
                 self.video_seg_feature_path,
                 self.key_frames)
@@ -215,6 +256,8 @@ class DataManager:
          self.features,
          self.captions,
          self.raw_captions,
+         self.raw_captions_per_class,
+         self.raw_captions_to_class,
          self.frame_paths,
          self.video_seg_feature_path,
          self.key_frames) = pickle.load(file)
