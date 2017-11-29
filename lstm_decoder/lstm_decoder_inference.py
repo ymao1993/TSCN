@@ -1,8 +1,8 @@
 from lstm_decoder import *
 
 
-def build_model(model_config):
-    model = LSTMDecoder(model_config, mode="inference")
+def build_model(model_config, model_class):
+    model = model_class(model_config, mode="inference")
     model.build()
 
 

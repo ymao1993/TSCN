@@ -1,6 +1,7 @@
 """Train the LSTM decoder model."""
 import time
 from lstm_decoder import *
+from lstm_decoder_repeated_feed_image import *
 import lstm_decoder_config as configuration
 from data_loader import DataLoader
 from vocabulary import Vocabulary
@@ -21,6 +22,8 @@ tf.flags.DEFINE_string("summary_dir", "summary_dir",
 tf.flags.DEFINE_integer("number_of_steps", 1000000, "Number of training steps.")
 tf.flags.DEFINE_integer("log_every_n_steps", 1,
                         "Frequency at which loss and global step are logged.")
+tf.flags.DEFINE_integer("repeated_feed_images", False,
+                        "Repeated feed images to LSTM at each step.")
 tf.flags.DEFINE_integer("validation_loss_every_n_steps", 10,
                         "Frequency at which validation loss is computed for one mini-batch.")
 tf.logging.set_verbosity(tf.logging.INFO)
@@ -64,16 +67,11 @@ def main(args):
     g = tf.Graph()
     with g.as_default():
         print('Building LSTM decoder model...')
-        model = LSTMDecoder(model_config, mode="train")
+        if not FLAGS.repeated_feed_images:
+            model = LSTMDecoder(model_config, mode="train")
+        else:
+            model = LSTMDecoderRepeatedImageFeed(model_config, mode="train")
         model.build()
-
-        print('Initializing data loader for training set...')
-        start = time.time()
-        data_loader_train = DataLoader()
-        data_loader_train.load(FLAGS.training_data_loader)
-        end = time.time()
-        time_elapsed = end - start
-        print('Finished initializing data loader (time elapsed: %f)' % time_elapsed)
 
         # Setup learning rate decay.
         num_batches_per_epoch = (training_config.num_examples_per_epoch /
@@ -100,6 +98,20 @@ def main(args):
         # Create saver
         saver = tf.train.Saver(max_to_keep=training_config.max_checkpoints_to_keep)
 
+        # Initialize variables.
+        print('Initializing variables...')
+        init = tf.global_variables_initializer()
+        sess = tf.Session()
+        sess.run(init)
+
+        print('Initializing data loader for training set...')
+        start = time.time()
+        data_loader_train = DataLoader()
+        data_loader_train.load(FLAGS.training_data_loader)
+        end = time.time()
+        time_elapsed = end - start
+        print('Finished initializing data loader (time elapsed: %f)' % time_elapsed)
+
         print('Initializing data loader for validation set...')
         start = time.time()
         data_loader_val = DataLoader()
@@ -107,15 +119,6 @@ def main(args):
         end = time.time()
         time_elapsed = end - start
         print('Finished initializing data loader (time elapsed: %f)' % time_elapsed)
-
-        # Initialize variables.
-        print('Initializing variables...')
-        init = tf.global_variables_initializer()
-        sess = tf.Session()
-        sess.run(init)
-
-        # Just want to see if it will over-fit.
-        # data_loader_train.videos = data_loader_train.videos[:100]
 
         print('Start training...')
         # Stochastic Gradient Descent

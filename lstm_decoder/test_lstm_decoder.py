@@ -1,6 +1,7 @@
 """Test the LSTM decoder model."""
 import time
 from lstm_decoder import *
+from lstm_decoder_repeated_feed_image import *
 import lstm_decoder_config as configuration
 from data_loader import DataLoader
 from vocabulary import Vocabulary
@@ -20,6 +21,8 @@ tf.flags.DEFINE_string("model_path", "",
                        "Saved model path.")
 tf.flags.DEFINE_string("output_file", "",
                        "Path the dump output json file.")
+tf.flags.DEFINE_integer("repeated_feed_images", False,
+                        "Repeated feed images to LSTM at each step.")
 tf.logging.set_verbosity(tf.logging.INFO)
 
 
@@ -62,7 +65,11 @@ def main(args):
     g = tf.Graph()
     with g.as_default():
         print('Building LSTM decoder model for inference...')
-        lstm_decoder_inference.build_model(model_config)
+
+        if not FLAGS.repeated_feed_images:
+            lstm_decoder_inference.build_model(model_config, model_class=LSTMDecoder)
+        else:
+            lstm_decoder_inference.build_model(model_config, model_class=LSTMDecoderRepeatedImageFeed)
 
         print('Initializing variables...')
         init = tf.global_variables_initializer()
@@ -101,7 +108,12 @@ def main(args):
             for i in range(const_config.lstm_truncated_length):
                 softmax_output, next_state =\
                     lstm_decoder_inference.inference_step(sess, current_input, current_state)
-                next_input = np.argmax(softmax_output, axis=1)
+
+                # Sample the next word according to the probability.
+                next_input = []
+                for probs in softmax_output:
+                    next_input.append(np.random.choice(vocab_size, p=probs))
+                next_input = np.array(next_input)
                 generated_sentences[:, i + 1] = next_input
 
                 # Update input and state.

@@ -1,3 +1,0 @@
-[submodule "i3d"]
-	path = i3d
-	url = https://github.com/deepmind/kinetics-i3d

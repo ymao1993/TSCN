@@ -17,7 +17,7 @@ class ModelConfig(object):
 
         # Number of segments used in sampling training features for each video.
         # Number of frames used to represent each video
-        self.num_segments = 10
+        self.num_segments = 8
 
         # Input feature dimensionality
         self.input_feature_size = 1024
@@ -29,7 +29,7 @@ class ModelConfig(object):
         self.num_units_intermediate_fc = 1024
 
         # LSTM input and output dimensionality, respectively.
-        self.embedding_size = 1024
+        self.embedding_size = 512
         self.num_lstm_units = 1024
 
         # If < 1.0, the dropout keep probability applied to LSTM variables.
@@ -52,9 +52,9 @@ class TrainingConfig(object):
         self.optimizer = "SGD"
 
         # Learning rate for the initial phase of training.
-        self.initial_learning_rate = 0.01
+        self.initial_learning_rate = 0.001
         self.learning_rate_decay_factor = 0.5
-        self.num_epochs_per_decay = 4.0
+        self.num_epochs_per_decay = 10.0  # prev: 2.0
 
         # If not None, clip gradients to this value.
         self.clip_gradients = 5.0
