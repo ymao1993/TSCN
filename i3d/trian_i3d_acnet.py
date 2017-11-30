@@ -7,26 +7,12 @@ import os.path
 import time
 import collections
 
-import numpy as np
 import tensorflow as tf
-
 import i3d
-
 from acnet_reader import get_rgb_input
 import train_i3d_acnet_config as config
 
-_IMAGE_SIZE = 224
-_NUM_CLASSES = 51
-
-base_dir = '/ssd2/hmdb/'
-
-max_steps = 5000
-
-_LABEL_MAP_PATH = 'data/label_map.txt'
-
 FLAGS = tf.flags.FLAGS
-
-tf.flags.DEFINE_boolean('imagenet_pretrained', True, '')
 tf.flags.DEFINE_string("train_dir", "",
                        "Frequency at which validation loss is computed for one mini-batch.")
 tf.flags.DEFINE_string("summary_dir", "",
@@ -69,14 +55,14 @@ def average_gradients(grads):
     return average_grads
 
 
-def train(batch_size=config.batch_size, num_gpus=3):
+def train(num_gpus=3):
     assert FLAGS.train_dir, "--train_dir is required"
     assert FLAGS.summary_dir, "--summary_dir is required"
 
     with tf.Graph().as_default(), tf.device('/cpu:0'):
         # Create the network.
         with tf.variable_scope('RGB'):
-            rgb_model = i3d.InceptionI3d(_NUM_CLASSES, spatial_squeeze=True, final_endpoint='Logits')
+            rgb_model = i3d.InceptionI3d(config.num_classes, spatial_squeeze=True, final_endpoint='Logits')
 
         # Initial learning rate.
         lr = tf.Variable(config.initial_learning_rate)
@@ -85,11 +71,11 @@ def train(batch_size=config.batch_size, num_gpus=3):
         opt = tf.train.MomentumOptimizer(lr, config.momentum)
 
         # Get data set.
-        rgbs, labels = get_rgb_input(base_dir, os.path.join(base_dir, 'splits/final_split1_train.txt'), batch_size)
+        rgbs, labels = get_rgb_input(config.rgb_frames_base_dir, config.video_meta_info_file, config.batch_size)
         batch_queue_capacity = 2 * config.batch_size
         batch_queue = tf.contrib.slim.prefetch_queue.prefetch_queue([rgbs, labels], capacity=batch_queue_capacity)
 
-        # Create model on each GPU and get gradients for each
+        # Create model on each GPU and get gradients for each.
         all_rgb_grads = []
         rgb_loss = None
         with tf.variable_scope(tf.get_variable_scope()):
@@ -103,8 +89,7 @@ def train(batch_size=config.batch_size, num_gpus=3):
                         # Reuse the across models on different GPUs.
                         tf.get_variable_scope().reuse_variables()
 
-                        # calculate gradients for this tower
-                        # track all gradients
+                        # Calculate gradients for this tower track all gradients.
                         if rgb_loss is not None:
                             grads_rgb = opt.compute_gradients(rgb_loss)
                             all_rgb_grads.append(grads_rgb)
@@ -112,13 +97,13 @@ def train(batch_size=config.batch_size, num_gpus=3):
                         # Retain summaries.
                         summaries = tf.get_collection(tf.GraphKeys.SUMMARIES, scope)
 
-        # sync and average grads
+        # Sync and average grads.
         rgb_grads = average_gradients(all_rgb_grads)
 
-        # track lr
+        # Track lr.
         summaries.append(tf.summary.scalar('learning_rate', lr))
 
-        # track grads:
+        # Track grads.
         for grad, var in rgb_grads:
             if grad is not None:
                 summaries.append(tf.summary.histogram(var.op.name + '/rgb_gradients', grad))
@@ -168,7 +153,7 @@ def train(batch_size=config.batch_size, num_gpus=3):
         # Begin Training Iterations.
         losses = collections.deque(maxlen=10)
         last_loss = None
-        for step in xrange(max_steps):
+        for step in xrange(config.max_iteration):
             start_time = time.time()
             _, loss_value, lra = sess.run([train_op, loss, lr])
             duration = time.time() - start_time
@@ -185,7 +170,7 @@ def train(batch_size=config.batch_size, num_gpus=3):
                     if diff < 0.001:
                         lr /= 10.
 
-            num_examples_per_step = batch_size * num_gpus
+            num_examples_per_step = config.batch_size * num_gpus
             examples_per_sec = num_examples_per_step / duration
             sec_per_batch = duration / num_gpus
             format_str = ('%s: step %d, avg loss = %.2f (%.1f examples/sec; %.3f '
@@ -193,12 +178,11 @@ def train(batch_size=config.batch_size, num_gpus=3):
             print (format_str % (datetime.now(), step, sum(losses) / 10,
                                  examples_per_sec, sec_per_batch))
             print 'learning rate: %f' % lra
-
             if step % config.save_summary_every_n_iterations == 0:
                 summary_str = sess.run(summary_op)
                 summary_writer.add_summary(summary_str, step)
 
-            if step % config.save_model_every_n_iterations == 0 or (step + 1) == max_steps:
+            if step % config.save_model_every_n_iterations == 0 or (step + 1) == config.max_iteration:
                 model_save_path = os.path.join(FLAGS.train_dir, config.pretrained_model_paths)
                 rgb_saver.save(sess, model_save_path, global_step=step)
 

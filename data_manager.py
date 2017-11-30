@@ -178,7 +178,10 @@ class DataManager:
                 raw_captions_tokens.append(nltk.word_tokenize(raw_captions[i]))
 
     def query_nearest_caption_by_caption_with_brutal_force(
-            self, query_caption, metrics='bleu', action_class=None):
+            self, query_caption, metrics='bleu', action_class=None,
+            dropout_keep_prob=1.0):
+        assert dropout_keep_prob <= 1.0, "dropout_keep_prob must be between [0.0,1.0]."
+        assert dropout_keep_prob >= 0.0, "dropout_keep_prob must be between [0.0,1.0]."
         similarity_func = nltk.translate.bleu_score.sentence_bleu
         if metrics == 'bleu':
             similarity_func = nltk.translate.bleu_score.sentence_bleu
@@ -203,11 +206,15 @@ class DataManager:
         query_caption_tokens = nltk.word_tokenize(query_caption.lower())
         highest_score = -1
         nearest_candidate = None
+        candidate_mask = np.random.choice(
+            2, size=len(candidate_captions),
+            p=[1.0 - dropout_keep_prob, dropout_keep_prob])
         for i, caption_tokens in enumerate(candidate_captions_tokens):
-            score = similarity_func([query_caption_tokens], caption_tokens)
-            if score > highest_score:
-                nearest_candidate = candidate_captions[i]
-                highest_score = score
+            if candidate_mask[i] == 1 or i == 0:
+                score = similarity_func([query_caption_tokens], caption_tokens)
+                if score > highest_score:
+                    nearest_candidate = candidate_captions[i]
+                    highest_score = score
         return nearest_candidate
 
     def get_frames_path(self, video_segment_name):

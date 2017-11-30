@@ -1,4 +1,4 @@
-from lstm_decoder import *
+import tensorflow as tf
 
 
 def build_model(model_config, model_class):
@@ -17,11 +17,12 @@ def feed_image(sess, input_features):
     return initial_state
 
 
-def inference_step(sess, input_feed, state_feed):
+def inference_step(sess, input_feed, state_feed, image_feature):
     softmax_output, state_output = sess.run(
         fetches=["softmax:0", "lstm/state:0"],
         feed_dict={
             "input_feed:0": input_feed,
             "lstm/state_feed:0": state_feed,
+            "input_features:0": image_feature
         })
     return softmax_output, state_output

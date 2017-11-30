@@ -5,4 +5,5 @@ python test_lstm_decoder.py \
 --validation_data_loader data_loader_data/data_loader_val1_inception.dat \
 --model_path models/tmp_8/model-3000 \
 --output_file output.json \
---repeated_feed_images 1
+--repeated_feed_images 1 \
+--selection_method argmax
