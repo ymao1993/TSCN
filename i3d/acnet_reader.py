@@ -55,7 +55,7 @@ def random_flip_left_right(image, seed=None):
     return fix_image_flip_shape(image.get_shape(), result)
 
 
-def read_image_frame(base, video_dir, start, num=64):
+def read_image_frame(base, video_dir, start, num):
     """
     Read RGB images from [base/video_dir/start.jpg, base/video_dir/start+num-1.jpg]
     Note that at least one of base, video_dir, start should be a tensor. (Because this is part of the graph!)
@@ -65,7 +65,7 @@ def read_image_frame(base, video_dir, start, num=64):
     for i in range(num):
         # convert to file name in tf format
         path = tf.string_join(
-            [tf.constant(base), video_dir, tf.constant('/frame'), tf.as_string(i + start, width=5, fill='0'),
+            [tf.constant(base) + '/', video_dir + '/', tf.as_string(i + start, width=6, fill='0'),
              tf.constant('.jpg')])
         img = tf.read_file(path)
         img = tf.image.decode_jpeg(img, channels=3)
@@ -82,7 +82,7 @@ def preprocess_frames(frames):
     rgb_frames = tf.random_crop(frames, size=cropped_shape)
     # random left/right flip
     rgb_frames = random_flip_left_right(rgb_frames)
-    # Scale the image pixel values from [0,1] to [-1, 1]
+    # Scale the image pixel values from [0, 1] to [-1, 1]
     rgb_frames *= 2.
     rgb_frames -= 1.
     rgb_frames.set_shape(cropped_shape)
@@ -93,9 +93,9 @@ def read_video_frames_and_preprocess(queue, base):
     """ Read video snippet randomly from the video folder in the queue.
     """
     csv_line = queue.dequeue()
-    video_name, num_frames, label = tf.decode_csv(csv_line, ['', 0, -1], field_delim=',')
-    start = tf.random_uniform([1], 1, num_frames - kNumFramesPerSnippets)
-    frames = read_image_frame(base, video_name, start)
+    video_name, num_frames, label = tf.decode_csv(csv_line, [[''], [0], [-1]], field_delim=',')
+    start = tf.random_uniform((), 1, num_frames - kNumFramesPerSnippets + 2, dtype=tf.int32)
+    frames = read_image_frame(base, video_name, start, kNumFramesPerSnippets)
     frames_preprocessed = preprocess_frames(frames)
     label = tf.cast(label, tf.int32)
     return frames_preprocessed, label
@@ -104,6 +104,9 @@ def read_video_frames_and_preprocess(queue, base):
 def generate_batch(frame, label, batch_size):
     """ Batch frame stream and provide mini-batch of frame, label pairs to the downstream component.
     """
+    # Number of threads used to enqueue [frame, label],
+    # which equals to the number of threads to perform
+    # read_video_frames_and_preprocess() in this context.
     num_preprocess_threads = 16
     stream, labels = tf.train.shuffle_batch([frame, label],
                                             batch_size=batch_size,

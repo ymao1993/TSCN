@@ -40,10 +40,18 @@ def main():
         for i in range(len(data)):
             video_segment_result = data[i]
             video_segment_name = video_segment_result['name']
-            sample = {
-                'sentence': video_segment_result['video_caption'],
-                'timestamp': valtimes[video_segment_name]
-            }
+
+            # Hack code to deal with two different type of format.
+            if 'video_caption' in video_segment_result:
+                sample = {
+                    'sentence': video_segment_result['video_caption'],
+                    'timestamp': valtimes[video_segment_name]
+                }
+            elif 'caption' in video_segment_result:
+                sample = {
+                    'sentence': video_segment_result['caption'],
+                    'timestamp': valtimes[video_segment_name]
+                }
             video_name = valmap[video_segment_name]
             if video_name not in results:
                 results[video_name] = [sample]

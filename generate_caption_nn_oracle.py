@@ -38,7 +38,7 @@ def task(q, dm_train, dm_val, metrics, dropout_keep_prob, json_all_results):
                 {
                     'name': video_segment_name,
                     'gt_caption': gt_caption,
-                    'caption': caption
+                    'video_caption': caption
                 }
             )
         q.task_done()

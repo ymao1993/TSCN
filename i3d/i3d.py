@@ -113,7 +113,8 @@ class InceptionI3d(snt.AbstractModule):
   )
 
   def __init__(self, num_classes=400, spatial_squeeze=True,
-               final_endpoint='Logits', name='inception_i3d'):
+               final_endpoint='Logits', name='inception_i3d',
+               freeze_before_logits=False):
     """Initializes I3D model instance.
 
     Args:
@@ -128,6 +129,7 @@ class InceptionI3d(snt.AbstractModule):
           dictionary. `final_endpoint` must be one of
           InceptionI3d.VALID_ENDPOINTS (default 'Logits').
       name: A string (optional). The name of this module.
+      freeze_before_logits: Whether to freeze the network before Logits layer. (Used for fine-tuning)
 
     Raises:
       ValueError: if `final_endpoint` is not recognized.
@@ -140,6 +142,7 @@ class InceptionI3d(snt.AbstractModule):
     self._num_classes = num_classes
     self._spatial_squeeze = spatial_squeeze
     self._final_endpoint = final_endpoint
+    self._freeze_before_logits = freeze_before_logits
 
   def _build(self, inputs, is_training, dropout_keep_prob=1.0):
     """Connects the model to inputs.
@@ -455,6 +458,9 @@ class InceptionI3d(snt.AbstractModule):
       net = tf.concat([branch_0, branch_1, branch_2, branch_3], 4)
     end_points[end_point] = net
     if self._final_endpoint == end_point: return net, end_points
+
+    if self._freeze_before_logits:
+        net = tf.stop_gradient(net)
 
     end_point = 'Logits'
     with tf.variable_scope(end_point):

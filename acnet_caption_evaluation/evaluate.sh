@@ -6,7 +6,6 @@ python format_convert/convert_with_gt_proposals.py input tmp
 
 # Evaluate.
 cd densevid_eval
-rm -rf ../output/*
 for input_file in ../tmp/*
 do
     output_file=../output/$(basename $input_file .json).result
