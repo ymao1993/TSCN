@@ -1,5 +1,8 @@
 """
 The code implements LSTM decoder module used for caption generation.
+
+The basic idea is the same with show-and-tell model.
+
 The code is modified from show-and-tell source code https://github.com/tensorflow/models/tree/master/research/im2txt.
 """
 

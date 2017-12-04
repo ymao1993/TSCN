@@ -1,5 +1,10 @@
 """
 The code implements LSTM decoder module used for caption generation.
+
+The basic idea is the same with show-and-tell model except that we concatenate the the video feature embedding with
+the input word embedding and feed them as input at every time steps. In the original show-and-tell model, the image
+feature embedding is only fed as input at the first time step.
+
 The code is modified from show-and-tell source code https://github.com/tensorflow/models/tree/master/research/im2txt.
 """
 
