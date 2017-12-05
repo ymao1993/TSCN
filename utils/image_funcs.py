@@ -3,6 +3,7 @@
 
 import skimage
 import skimage.io
+import skimage.color
 import numpy as np
 import cv2
 
@@ -25,6 +26,13 @@ def save_image(image, file_path, to_ubyte=True):
         skimage.io.imsave(file_path, convert_image_data_type_to_uint64(image))
     else:
         skimage.io.imsave(file_path, image)
+
+
+def rgb_to_gray(image):
+    """
+    Convert RGB image to gray-scale image.
+    """
+    return skimage.color.rgb2grey(image)
 
 
 def convert_image_data_type_to_float(image):

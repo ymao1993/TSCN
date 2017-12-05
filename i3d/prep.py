@@ -2,7 +2,7 @@ import sys
 import os
 import numpy as np
 sys.path.insert(0, "../")
-import action_recognition.image_funcs as image_funcs
+import utils.image_funcs as image_funcs
 
 
 class VideoFramesPreprocessor:
