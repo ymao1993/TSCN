@@ -2,6 +2,7 @@
 import time
 from lstm_decoder import *
 from lstm_decoder_repeated_feed_image import *
+from lstm_decoder_scratch import *
 import lstm_decoder_config as configuration
 from data_loader import DataLoader
 from vocabulary import Vocabulary
@@ -20,9 +21,9 @@ tf.flags.DEFINE_string("model_path", "",
                        "Saved model path.")
 tf.flags.DEFINE_string("output_file", "",
                        "Path the dump output json file.")
-tf.flags.DEFINE_integer("repeated_feed_images", False,
-                        "Repeated feed images to LSTM at each step.")
-tf.flags.DEFINE_string("selection_method", "sampling",
+tf.flags.DEFINE_string("decoder_version", "RepeatedFeed",
+                       "SingleFeed/RepeatedFeed/Scratch")
+tf.flags.DEFINE_string("selection_method", "argmax",
                        "sampling/argmax/beam_search.")
 tf.logging.set_verbosity(tf.logging.INFO)
 
@@ -69,10 +70,12 @@ def main(args):
     with g.as_default():
         print('Building LSTM decoder model for inference...')
 
-        if not FLAGS.repeated_feed_images:
+        if FLAGS.decoder_version == 'SingleFeed':
             model = LSTMDecoder(model_config, mode="inference")
-        else:
+        elif FLAGS.decoder_version == 'RepeatedFeed':
             model = LSTMDecoderRepeatedImageFeed(model_config, mode="inference")
+        else:
+            model = LSTMDecoderScratch(model_config, mode="inference")
         model.build()
 
         print('Initializing variables...')
@@ -99,14 +102,15 @@ def main(args):
         max_sentence_length = const_config.lstm_truncated_length + 1
 
         json_results = []
-        for image_features, _, _, _, video_indices, video_segment_indices, valid_count in \
-                data_loader_val.segmental_sampling_iter(batch_size=model_config.batch_size,
-                                                        num_segments=model_config.num_segments):
-
+        for image_features, _, _, _, video_indices, video_segment_indices, valid_count in data_loader_val.segmental_sampling_iter(batch_size=model_config.batch_size, num_segments=model_config.num_segments):
+        # for image_features, video_indices, video_segment_indices, valid_count in generate_dumb_batch(model_config.batch_size, model_config.num_segments):
             current_input = initial_input_sequence.copy()
-            if not FLAGS.repeated_feed_images:
+            if FLAGS.decoder_version == 'SingleFeed':
                 current_state = sess.run(fetches="lstm/initial_state:0",
                                          feed_dict={"input_features:0": image_features})
+            elif FLAGS.decoder_version == 'RepeatedFeed':
+                current_state = sess.run(fetches="lstm/initial_state:0",
+                                         feed_dict={})
             else:
                 current_state = sess.run(fetches="lstm/initial_state:0",
                                          feed_dict={})
@@ -117,12 +121,20 @@ def main(args):
             completed_masks = np.zeros(model_config.batch_size, dtype=np.bool)
 
             for i in range(const_config.lstm_truncated_length):
-                if not FLAGS.repeated_feed_images:
+                if FLAGS.decoder_version == 'SingleFeed':
                     softmax_output, next_state = sess.run(
                         fetches=["softmax:0", "lstm/state:0"],
                         feed_dict={
                             "input_feed:0": current_input,
                             "lstm/state_feed:0": current_state
+                        })
+                elif FLAGS.decoder_version == 'RepeatedFeed':
+                    softmax_output, next_state = sess.run(
+                        fetches=["softmax:0", "lstm/state:0"],
+                        feed_dict={
+                            "input_feed:0": current_input,
+                            "lstm/state_feed:0": current_state,
+                            "input_features:0": image_features
                         })
                 else:
                     softmax_output, next_state = sess.run(

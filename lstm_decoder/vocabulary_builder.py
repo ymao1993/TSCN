@@ -1,12 +1,14 @@
 """ Build vocabulary.
 """
 
+import sys
 from collections import Counter
+
 import nltk.tokenize
 import tensorflow as tf
-import sys
+
 sys.path.insert(0, '../')
-from data_manager import *
+from nn_captioning.data_manager import *
 
 tf.flags.DEFINE_string("caption_json", "",
                        "ActivityNet Caption JSON file.")

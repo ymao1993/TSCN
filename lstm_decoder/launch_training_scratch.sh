@@ -8,4 +8,4 @@ python train_lstm_decoder.py \
 --vocab_file data/vocab.txt \
 --train_dir train_dir \
 --summary_dir summary_dir \
---decoder_version RepeatedFeed
+--decoder_version Scratch

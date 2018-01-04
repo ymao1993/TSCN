@@ -2,6 +2,7 @@
 import time
 from lstm_decoder import *
 from lstm_decoder_repeated_feed_image import *
+from lstm_decoder_scratch import *
 import lstm_decoder_config as configuration
 from data_loader import DataLoader
 from vocabulary import Vocabulary
@@ -22,8 +23,8 @@ tf.flags.DEFINE_string("summary_dir", "summary_dir",
 tf.flags.DEFINE_integer("number_of_steps", 1000000, "Number of training steps.")
 tf.flags.DEFINE_integer("log_every_n_steps", 1,
                         "Frequency at which loss and global step are logged.")
-tf.flags.DEFINE_integer("repeated_feed_images", False,
-                        "Repeated feed images to LSTM at each step.")
+tf.flags.DEFINE_string("decoder_version", "RepeatedFeed",
+                       "SingleFeed/RepeatedFeed/Scratch")
 tf.flags.DEFINE_integer("validation_loss_every_n_steps", 10,
                         "Frequency at which validation loss is computed for one mini-batch.")
 tf.logging.set_verbosity(tf.logging.INFO)
@@ -67,10 +68,12 @@ def main(args):
     g = tf.Graph()
     with g.as_default():
         print('Building LSTM decoder model...')
-        if not FLAGS.repeated_feed_images:
+        if FLAGS.decoder_version == 'SingleFeed':
             model = LSTMDecoder(model_config, mode="train")
-        else:
+        elif FLAGS.decoder_version == 'RepeatedFeed':
             model = LSTMDecoderRepeatedImageFeed(model_config, mode="train")
+        else:  # FLAGS.decoder_version == 'Scratch':
+            model = LSTMDecoderScratch(model_config, mode="train")
         model.build()
 
         # Setup learning rate decay.
