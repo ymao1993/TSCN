@@ -3,6 +3,7 @@ import time
 from lstm_decoder import *
 from lstm_decoder_repeated_feed_image import *
 from lstm_decoder_scratch import *
+from lstm_decoder_attention import *
 import lstm_decoder_config as configuration
 from data_loader import DataLoader
 from vocabulary import Vocabulary
@@ -72,8 +73,10 @@ def main(args):
             model = LSTMDecoder(model_config, mode="train")
         elif FLAGS.decoder_version == 'RepeatedFeed':
             model = LSTMDecoderRepeatedImageFeed(model_config, mode="train")
-        else:  # FLAGS.decoder_version == 'Scratch':
+        elif FLAGS.decoder_version == 'Scratch':
             model = LSTMDecoderScratch(model_config, mode="train")
+        else:  # FLAGS.decoder_version == 'Attention':
+            model = LSTMDecoderAttention(model_config, mode="train")
         model.build()
 
         # Setup learning rate decay.
@@ -127,9 +130,8 @@ def main(args):
         # Stochastic Gradient Descent
         for i in range(training_config.num_iterations):
             print('Sampling mini-batch...')
-            image_features, input_sequence, input_mask, target_sequence =\
-                data_loader_train.segmental_sampling(batch_size=training_config.batch_size,
-                                                     num_segments=model_config.num_segments)
+            image_features, input_sequence, input_mask, target_sequence = data_loader_train.segmental_sampling(batch_size=training_config.batch_size, num_segments=model_config.num_segments)
+            # image_features, input_sequence, input_mask, target_sequence = generate_dumb_batch(training_config.batch_size, model_config.num_segments)
 
             _, total_loss, summary = sess.run((train, model.total_loss, all_summary),
                                               feed_dict={"input_features:0": image_features,

@@ -41,9 +41,6 @@ class LSTMDecoderScratch(object):
         # A float32 Tensor with shape [batch_size, embedding_size].
         self.feature_embeddings = None
 
-        # A float32 Tensor with shape [batch_size, embedding_size].
-        self.context_vector = None
-
         # A float32 scalar Tensor; the total loss for the trainer to optimize.
         self.total_loss = None
 
@@ -120,43 +117,6 @@ class LSTMDecoderScratch(object):
             seq_embeddings = tf.nn.embedding_lookup(embedding_map, input_feed)
         self.seq_embeddings = seq_embeddings
 
-    def build_context_vector(self, prev_hidden_states, annotation_vectors):
-        """
-        (This function is not used by this class.)
-        Compute blending weights and build the context vector.
-        :param prev_hidden_states: previous hidden states of shape [batch_size, num_lstm_units].
-        :param annotation_vectors: frame level features of shape [batch_size, num_segments * deep_feature_size].
-        :return:
-        """
-        # The combining weights are computed through a multi-layer perceptron(MLP).
-        num_hidden_units = self.config.input_feature_size + self.config.num_lstm_units
-        input_feature = tf.concat([prev_hidden_states, annotation_vectors], axis=1)
-        intermediate_layer = tf.contrib.layers.fully_connected(
-            inputs=input_feature,
-            num_outputs=num_hidden_units,
-            activation_fn=tf.nn.tanh,
-            weights_initializer=self.initializer,
-            biases_initializer=None,
-            weights_regularizer=tf.contrib.layers.l2_regularizer(self.config.regularization_strength),
-            biases_regularizer=tf.contrib.layers.l2_regularizer(self.config.regularization_strength))
-        with tf.variable_scope("attention_blending_weights") as scope:
-            # Blending_weights is of shape [batch_size, num_segments].
-            blending_weights = tf.contrib.layers.fully_connected(
-                inputs=intermediate_layer,
-                num_outputs=self.config.num_segments,
-                activation_fn=None,
-                weights_initializer=self.initializer,
-                biases_initializer=None,
-                weights_regularizer=tf.contrib.layers.l2_regularizer(self.config.regularization_strength),
-                biases_regularizer=tf.contrib.layers.l2_regularizer(self.config.regularization_strength),
-                scope=scope)
-        # annotation_vectors_reshaped is of shape [batch_size, num_segments, deep_feature_size].
-        annotation_vectors_reshaped = tf.reshape(annotation_vectors,
-                                                 [self.config.batch_size, self.config.num_segments, -1])
-        # context_vector is of shape [batch_size, deep_feature_size].
-        context_vector = tf.reduce_sum(tf.expand_dims(blending_weights, -1) * annotation_vectors_reshaped, axis=2)
-        self.context_vector = context_vector
-
     def build_model(self):
         """Builds the model.
 
@@ -179,17 +139,7 @@ class LSTMDecoderScratch(object):
                                     shape=[self.config.batch_size, const_config.lstm_truncated_length],
                                     name="input_mask")
 
-        lstm_cell = tf.contrib.rnn.MultiRNNCell(
-            [tf.contrib.rnn.BasicLSTMCell(num_units=self.config.num_lstm_units, forget_bias=0.0)
-             for _ in range(self.config.num_lstm_layers)], state_is_tuple=True)
-
-        if self.mode == "train":
-            lstm_cell = tf.contrib.rnn.DropoutWrapper(
-                lstm_cell,
-                input_keep_prob=self.config.lstm_dropout_keep_prob,
-                output_keep_prob=self.config.lstm_dropout_keep_prob)
-
-        with tf.variable_scope("lstm", initializer=self.initializer) as lstm_scope:
+        with tf.variable_scope("lstm", initializer=self.initializer):
             # LSTM from scratch.
             global_video_feature_length = self.config.embedding_size
             word_embedding_size = self.config.embedding_size

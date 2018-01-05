@@ -3,6 +3,7 @@ import time
 from lstm_decoder import *
 from lstm_decoder_repeated_feed_image import *
 from lstm_decoder_scratch import *
+from lstm_decoder_attention import *
 import lstm_decoder_config as configuration
 from data_loader import DataLoader
 from vocabulary import Vocabulary
@@ -74,8 +75,10 @@ def main(args):
             model = LSTMDecoder(model_config, mode="inference")
         elif FLAGS.decoder_version == 'RepeatedFeed':
             model = LSTMDecoderRepeatedImageFeed(model_config, mode="inference")
-        else:
+        elif FLAGS.decoder_version == 'Scratch':
             model = LSTMDecoderScratch(model_config, mode="inference")
+        else:  # FLAGS.decoder_version == 'Attention':
+            model = LSTMDecoderAttention(model_config, mode="inference")
         model.build()
 
         print('Initializing variables...')
@@ -111,7 +114,10 @@ def main(args):
             elif FLAGS.decoder_version == 'RepeatedFeed':
                 current_state = sess.run(fetches="lstm/initial_state:0",
                                          feed_dict={})
-            else:
+            elif FLAGS.decoder_version == 'Scratch':
+                current_state = sess.run(fetches="lstm/initial_state:0",
+                                         feed_dict={})
+            else:  # FLAGS.decoder_version == 'Attention'
                 current_state = sess.run(fetches="lstm/initial_state:0",
                                          feed_dict={})
 
@@ -136,7 +142,15 @@ def main(args):
                             "lstm/state_feed:0": current_state,
                             "input_features:0": image_features
                         })
-                else:
+                elif FLAGS.decoder_version == 'Scratch':
+                    softmax_output, next_state = sess.run(
+                        fetches=["softmax:0", "lstm/state:0"],
+                        feed_dict={
+                            "input_feed:0": current_input,
+                            "lstm/state_feed:0": current_state,
+                            "input_features:0": image_features
+                        })
+                else:  # FLAGS.decoder_version == 'Attention':
                     softmax_output, next_state = sess.run(
                         fetches=["softmax:0", "lstm/state:0"],
                         feed_dict={
