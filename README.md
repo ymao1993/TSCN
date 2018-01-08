@@ -3,7 +3,7 @@
 This repository contains the code for **Temporal Segment Captioning Network**(TSCN).
 
 
-## Performance
+## Results
 
 The models are evaluated on [ActivityNet Dense Captioning Dataset](http://activity-net.org/challenges/2017/captioning.html) with the ground truth video segment information.
 
