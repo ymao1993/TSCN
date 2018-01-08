@@ -56,7 +56,6 @@ context) and the annotation vectors.
 + **acnet\_caption\_evaluation**: Code for evaluating different scores of the result. See `Evaluation` section on how to use it.
 + **i3d**: model definition and training script of I3D.
 + **nn_captioning** Please ignore.
-+ **TSCN**: Please ignore.
 + **utils**: Please ignore.
 + **tool_scripts**: Please ignore.
 
