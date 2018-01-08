@@ -2,6 +2,21 @@
 
 This repository contains the code for **Temporal Segment Captioning Network**(TSCN).
 
+
+## Performance
+
+The scores below are computed on [ActivityNet Dense Captioning Dataset](http://activity-net.org/challenges/2017/captioning.html) with the ground truth video segment information.
+
+|    Models   | BLEU@1 | BLEU@2 | BLEU@3 | BLEU@4 | METEOR | CIDER |
+|:-----------:|:------:|:------:|:------:|:------:|:------:|:-----:|
+|   LSTM-YT   |  18.22 |  7.43  |  3.24  |  1.24  |  6.56  | 14.86 |
+|     S2VT    |  20.35 |  8.99  |  4.60  |  2.62  |  7.85  | 20.97 |
+|    H-RNN    |  19.46 |  8.78  |  4.34  |  2.53  |  8.02  | 20.18 |
+|   C3D+LSTM  |  26.45 |  13.48 |  7.12  |  3.98  |  9.46  | 24.56 |
+| TSCN (ours) |  18.28 |  7.32  |  2.93  |  1.22  |  9.07  | 25.62 |
+
+Note: The best version of TSCN found so far is defined in `lstm_decoder_scratch.py`. The corresponding hyper-parameters can be found [here](https://github.com/YuMao1993/ActivityNetVideoCaptioning/blob/a6baa483c7b01b8134795b098c1c04a550e5c80e/lstm_decoder/lstm_decoder_config.py).
+
 ## Training
 
 + Setting up the hyper-parameters in `lstm_decoder_config.py`.
