@@ -22,7 +22,7 @@ This repository contains the code for **Temporal Segment Captioning Network**(TS
 
 ## Notice
 
-+ Please make a copy of your repository while doing experiments so that we don't mess up each other's modification.
++ To Chunjia and Harsha: Please make a copy of the repository on lab machine before doing any experiments so that we don't mess up each other's modification.
 
 
 ## Code Structure
