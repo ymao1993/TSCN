@@ -16,15 +16,15 @@ def build_data_loader(vocabulary_file, feature_folder, caption_file, save_path):
 
 
 def main():
-    build_data_loader('/home/mscvproject/yu_code/lstm_decoder/data/vocab.txt',
-                      '/data01/mscvproject/data/ActivityNetCaptions/train_features_inception',
-                      '/home/mscvproject/yu_code/captions/train.json',
-                      'data_loader_data/data_loader_train_inception.dat')
+    build_data_loader('data/vocab.txt',
+                      '/data/caption/data/ActivityNetTrimVideosCaptions_features/train',
+                      '../captions/train.json',
+                      'data_loader_data/data_loader_train_inception_new.dat')
 
-    build_data_loader('/home/mscvproject/yu_code/lstm_decoder/data/vocab.txt',
-                      '/data01/mscvproject/data/ActivityNetCaptions/val_features_inception',
-                      '/home/mscvproject/yu_code/captions/val_1.json',
-                      'data_loader_data/data_loader_val1_inception.dat')
+    build_data_loader('data/vocab.txt',
+                      '/data/caption/data/ActivityNetTrimVideosCaptions_features/train',
+                      '../captions/val_1.json',
+                      'data_loader_data/data_loader_val1_inception_new.dat')
 
 if __name__ == '__main__':
     main()
