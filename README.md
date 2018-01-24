@@ -1,6 +1,6 @@
-# ActivityNetVideoCaptioning
+# TSCN
 
-This repository contains the code for **Temporal Segment Captioning Network**(TSCN).
+This repository contains the code for **Temporal Segment Captioning Network**(TSCN). The paper can be found in the repository.
 
 
 ## Results
