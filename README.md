@@ -1,6 +1,6 @@
 # TSCN
 
-This repository contains the code for **Temporal Segment Captioning Network**(TSCN). The paper can be found in the repository.
+This repository contains the code for **Temporal Segment Captioning Network**(TSCN). The paper can be found [here](https://github.com/YuMao1993/TSCN/blob/master/TSCN.pdf).
 
 
 ## Results
