@@ -17,7 +17,7 @@ class ModelConfig(object):
 
         # Number of segments used in sampling training features for each video.
         # Number of frames used to represent each video
-        self.num_segments = 5
+        self.num_segments = 8
 
         # Input feature dimensionality
         self.input_feature_size = 1024
@@ -30,7 +30,7 @@ class ModelConfig(object):
 
         # LSTM input and output dimensionality, respectively.
         self.embedding_size = 512
-        self.num_lstm_units = 512
+        self.num_lstm_units = 1024
 
         # If < 1.0, the dropout keep probability applied to LSTM variables.
         self.lstm_dropout_keep_prob = 0.95
